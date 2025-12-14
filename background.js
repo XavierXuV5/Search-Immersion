@@ -51,7 +51,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const targetPatterns = [];
     if (settings.yt) targetPatterns.push(URL_MAP.yt);
     if (settings.ytm) targetPatterns.push(URL_MAP.ytm);
-    if (settings.spotify) targetPatterns.push(URL_MAP.spotify);
+    if (settings.spotify) {
+        targetPatterns.push("*://open.spotify.com/*");
+        targetPatterns.push("*://*.spotify.com/*");
+    }
 
     if (targetPatterns.length === 0) { sendResponse({ status: "disabled" }); return; }
 
@@ -59,7 +62,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const targetTab = tabs.find(t => t.audible) || tabs[0];
       if (!targetTab) { sendResponse({ status: "no_tab" }); return; }
       
-      chrome.scripting.executeScript({ target: { tabId: targetTab.id }, func: scrapeMediaPage }, (results) => {
+      chrome.scripting.executeScript({ 
+        target: { tabId: targetTab.id }, 
+        func: scrapeMediaPage,
+        world: 'MAIN' 
+      }, (results) => {
         if (chrome.runtime.lastError) return;
         if (results && results[0]) sendResponse({ status: "connected", data: results[0].result });
       });
@@ -72,13 +79,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const targetPatterns = [];
     if (settings.yt) targetPatterns.push(URL_MAP.yt);
     if (settings.ytm) targetPatterns.push(URL_MAP.ytm);
-    if (settings.spotify) targetPatterns.push(URL_MAP.spotify);
+    if (settings.spotify) {
+        targetPatterns.push("*://open.spotify.com/*");
+        targetPatterns.push("*://*.spotify.com/*");
+    }
     if (targetPatterns.length === 0) return;
 
     chrome.tabs.query({ url: targetPatterns }, (tabs) => {
       const targetTab = tabs.find(t => t.audible) || tabs[0];
       if (targetTab) {
-        chrome.scripting.executeScript({ target: { tabId: targetTab.id }, func: controlMediaPage, args: [request.command] });
+        chrome.scripting.executeScript({ 
+            target: { tabId: targetTab.id }, 
+            func: controlMediaPage, 
+            args: [request.command],
+            world: 'MAIN'
+        });
       }
     });
   }
@@ -86,8 +101,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 
 function scrapeMediaPage() {
+  try {
+    if (navigator.mediaSession && navigator.mediaSession.metadata) {
+      const meta = navigator.mediaSession.metadata;
+      let bestArt = "";
+      let maxScore = -1;
+
+      if (meta.artwork && meta.artwork.length > 0) {
+        meta.artwork.forEach(art => {
+           let score = 0;
+           if (art.sizes) {
+               const parts = art.sizes.split('x');
+               if(parts.length > 0) score = parseInt(parts[0]) || 0;
+           }
+           if (score > maxScore) {
+               maxScore = score;
+               bestArt = art.src;
+           }
+        });
+      }
+
+      if (meta.title) {
+        return {
+           title: meta.title,
+           artist: meta.artist || "",
+           artwork: bestArt,
+           isPlaying: navigator.mediaSession.playbackState === 'playing'
+        };
+      }
+    }
+  } catch(e) {}
+
   const host = window.location.hostname;
   let d = { title: "", artist: "", artwork: "", isPlaying: false };
+  
   try {
     if (host.includes('youtube.com')) {
       const v = document.querySelector('video'); d.isPlaying = v ? !v.paused : false;
@@ -121,10 +168,28 @@ function scrapeMediaPage() {
       const img = document.querySelector('[data-testid="cover-art-image"]');
       d.artwork = img ? img.src : "";
     }
-  } catch(e) {} return d;
+  } catch(e) {} 
+  return d;
 }
 
 function controlMediaPage(c) {
+  if (navigator.mediaSession) {
+      if (c === 'toggle') {
+          if (navigator.mediaSession.playbackState === 'playing') {
+               const v = document.querySelector('video, audio');
+               if(v) v.pause(); 
+               else document.querySelector('[data-testid="control-button-playpause"]')?.click();
+          } else {
+               const v = document.querySelector('video, audio');
+               if(v) v.play();
+               else document.querySelector('[data-testid="control-button-playpause"]')?.click();
+          }
+      }
+      if (c === 'next') navigator.mediaSession.setActionHandler ? null : document.querySelector('[data-testid="control-button-skip-forward"], .ytp-next-button, .next-button')?.click();
+      if (c === 'prev') navigator.mediaSession.setActionHandler ? null : document.querySelector('[data-testid="control-button-skip-back"], .ytp-prev-button, .previous-button')?.click();
+      return;
+  }
+
   const host = window.location.hostname; const v = document.querySelector('video, audio');
   if (host.includes('spotify.com')) {
     if(c==='toggle') document.querySelector('[data-testid="control-button-playpause"]')?.click();

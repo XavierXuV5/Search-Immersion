@@ -1,5 +1,6 @@
 let burnInInterval = null;
 let currentEventKey = null;
+let calendarDisplayDate = new Date();
 
 const defaultSettings = {
   accent: '#50E3C2',
@@ -630,29 +631,65 @@ function setupBurnInProtection() {
 function renderCalendarSystem() {
   const grid = document.getElementById('cal-grid');
   const eventList = document.getElementById('event-list');
-  const now = new Date();
-  const year = now.getFullYear(); const month = now.getMonth();
+  const realNow = new Date();
+  
+  const year = calendarDisplayDate.getFullYear(); 
+  const month = calendarDisplayDate.getMonth();
+  
   const months = [t('jan'), t('feb'), t('mar'), t('apr'), t('may'), t('jun'), t('jul'), t('aug'), t('sep'), t('oct'), t('nov'), t('dec')];
   const prefs = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
+  
   let myStr = `${months[month]} ${year}`;
   if (prefs.language === 'ja' || (!prefs.language && navigator.language.startsWith('ja'))) myStr = `${year}年 ${months[month]}`;
   else if (prefs.language === 'ko' || (!prefs.language && navigator.language.startsWith('ko'))) myStr = `${year}년 ${months[month]}`;
 
-  document.getElementById('cal-month').innerText = myStr;
+  const calendarCard = document.getElementById('card-calendar');
+  const headerParent = calendarCard ? calendarCard.querySelector('.label-std') : null;
+
+  if (headerParent) {
+      headerParent.style.display = 'flex';
+      headerParent.style.justifyContent = 'space-between';
+      headerParent.style.alignItems = 'center';
+      headerParent.style.padding = '0';
+      
+      headerParent.innerHTML = `
+        <div id="cal-prev" style="cursor:pointer; opacity:0.6; padding: 8px 20px; font-family:var(--clock-font); user-select: none; font-size: 1.2rem;">◀</div>
+        <span id="cal-title" style="font-weight:600; user-select: none;">${myStr}</span>
+        <div id="cal-next" style="cursor:pointer; opacity:0.6; padding: 8px 20px; font-family:var(--clock-font); user-select: none; font-size: 1.2rem;">▶</div>
+      `;
+
+      document.getElementById('cal-prev').onclick = (e) => {
+        e.stopPropagation();
+        calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1);
+        renderCalendarSystem();
+      };
+      document.getElementById('cal-next').onclick = (e) => {
+        e.stopPropagation();
+        calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1);
+        renderCalendarSystem();
+      };
+  }
+
   const days = [t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')];
   grid.innerHTML = days.map(w => `<div class="cal-head">${w}</div>`).join('');
+  
   const firstDay = new Date(year, month, 1).getDay();
   const lastDate = new Date(year, month+1, 0).getDate();
+  
   for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
+  
   for(let d=1; d<=lastDate; d++) {
     const cell = document.createElement('div');
     cell.className = 'cal-cell'; cell.innerText = d;
-    if(d === now.getDate()) cell.classList.add('cal-today');
+    if(d === realNow.getDate() && month === realNow.getMonth() && year === realNow.getFullYear()) {
+        cell.classList.add('cal-today');
+    }
     const key = `event_${year}_${month}_${d}`;
     if(localStorage.getItem(key)) cell.classList.add('cal-has-event');
     cell.onclick = () => openEventModal(year, month, d);
     grid.appendChild(cell);
   }
+  
   eventList.innerHTML = ''; let h = false;
   for(let d=1; d<=lastDate; d++) {
     const k = `event_${year}_${month}_${d}`; const v = localStorage.getItem(k);
@@ -660,6 +697,7 @@ function renderCalendarSystem() {
   }
   if(!h) eventList.innerHTML = `<div style="opacity:0.5; font-size:0.8rem; text-align:center; padding:10px;">${t('no_events')}</div>`;
 }
+
 function openEventModal(year, month, day) {
   const modal = document.getElementById('event-modal'); const input = document.getElementById('ev-input'); const dateLabel = document.getElementById('ev-modal-date');
   const closeBtn = document.getElementById('close-event'); const saveBtn = document.getElementById('ev-save'); const delBtn = document.getElementById('ev-delete');
@@ -706,23 +744,56 @@ function renderDock() {
   initTiltEffect();
 }
 function renderDockSettingsList() {
-  const list = document.getElementById('dock-settings-list'); list.innerHTML = ''; const items = getDockItems();
+  const list = document.getElementById('dock-settings-list'); 
+  list.innerHTML = ''; 
+  const items = getDockItems();
+  
   items.forEach((item, index) => { 
     const row = document.createElement('div'); 
     row.className = 'dock-setting-row'; 
+    
     row.innerHTML = `
-      <div class="ds-label">${t('icon_label')}</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span class="ds-label">${t('icon_label')}</span>
+        <div class="ds-controls" style="display:flex; gap: 5px;">
+           ${index > 0 ? '<span class="ds-move-btn ds-up">↑</span>' : ''}
+           ${index < items.length - 1 ? '<span class="ds-move-btn ds-down">↓</span>' : ''}
+           <span class="ds-move-btn ds-del-inline" style="color:#ff453a;">×</span>
+        </div>
+      </div>
       <input type="text" class="ds-icon" value="${item.icon}" placeholder="${t('icon_placeholder')}">
-      <div class="ds-label" style="margin-top:4px;">${t('url_label')}</div>
+      <div class="ds-label" style="margin-top:8px;">${t('url_label')}</div>
       <input type="text" class="ds-url" value="${item.url}" placeholder="${t('url_label')}">
-      <button class="ds-del">×</button>
     `; 
+    
     const iI = row.querySelector('.ds-icon'); 
     const uI = row.querySelector('.ds-url'); 
-    const d = row.querySelector('.ds-del'); 
+    const d = row.querySelector('.ds-del-inline'); 
+    
     const save = () => { items[index].icon = iI.value; items[index].url = uI.value; localStorage.setItem('immersion_dock_items', JSON.stringify(items)); renderDock(); }; 
     iI.oninput = save; uI.oninput = save; 
+    
     d.onclick = () => { items.splice(index, 1); localStorage.setItem('immersion_dock_items', JSON.stringify(items)); renderDockSettingsList(); renderDock(); }; 
+
+    const upBtn = row.querySelector('.ds-up');
+    if(upBtn) {
+        upBtn.onclick = () => {
+            [items[index], items[index - 1]] = [items[index - 1], items[index]];
+            localStorage.setItem('immersion_dock_items', JSON.stringify(items));
+            renderDockSettingsList();
+            renderDock();
+        };
+    }
+    const downBtn = row.querySelector('.ds-down');
+    if(downBtn) {
+        downBtn.onclick = () => {
+            [items[index], items[index + 1]] = [items[index + 1], items[index]];
+            localStorage.setItem('immersion_dock_items', JSON.stringify(items));
+            renderDockSettingsList();
+            renderDock();
+        };
+    }
+
     list.appendChild(row); 
   });
 }

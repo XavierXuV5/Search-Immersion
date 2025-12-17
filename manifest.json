@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Search Immersion",
-  "version": "0.9.2.2",
+  "version": "0.9.3.0",
   "description": "リリーステスト版",
   "permissions": [
     "storage",
@@ -11,7 +11,8 @@
   ],
   "host_permissions": [
     "*://*/*",
-    "https://raw.githubusercontent.com/*"
+    "https://raw.githubusercontent.com/*",
+    "https://calendar.google.com/*" 
   ],
   "chrome_url_overrides": {
     "newtab": "newtab.html"

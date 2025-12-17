@@ -28,9 +28,11 @@ const defaultSettings = {
   mediaBackground: true,
   showZenMode: true,
   language: 'auto',
-  bgBlur: '50'
+  bgBlur: '50',
+  icalUrl: ''
 };
 
+let googleEventsCache = {};
 
 function t(key, params = {}) {
   const translations = window.immersion_i18n || {};
@@ -244,9 +246,18 @@ function initNestHub() {
               <div class="st-row"><span>${t('countdown_label')}</span><label class="toggle-switch"><input type="checkbox" id="set-show-countdown"><span class="slider"></span></label></div>
               <div class="st-row"><span>${t('zen_mode_btn')}</span><label class="toggle-switch"><input type="checkbox" id="set-show-zen"><span class="slider"></span></label></div>
               
-              <div class="st-group-title">${t('event_settings_group')}</div>
-              <div class="st-row column-layout">
-                <span>${t('countdown_target')}</span>
+            <div class="st-group-title">${t('event_settings_group')}</div>
+
+<div class="st-row column-layout">
+  <span>Google Calendar (iCal URL)</span>
+  <input type="text" id="set-ical-url" placeholder="https://calendar.google.com/calendar/ical/..." class="st-input">
+  <div style="font-size:0.75rem; opacity:0.6; margin-top:4px;">
+    Google Calendar > Settings > Integrate > Secret address in iCal format
+  </div>
+</div>
+
+<div class="st-row column-layout">
+  <span>${t('countdown_target')}</span>
                 <input type="text" id="set-cnt-title" placeholder="${t('event_name_placeholder')}" class="st-input" style="margin-bottom:8px;">
                 <div class="input-with-btn">
                   <input type="datetime-local" id="set-cnt-date" class="st-input">
@@ -454,7 +465,7 @@ function applyPreferences() {
   
   setVal('set-user-name', prefs.userName || 'User'); 
   setVal('set-news-url', prefs.newsUrl || ''); 
-  
+  setVal('set-ical-url', prefs.icalUrl || '');
   const ownerLabel = document.getElementById('about-owner-name');
   if(ownerLabel) ownerLabel.innerText = prefs.userName || 'User';
 
@@ -520,6 +531,7 @@ function savePreferences() {
     cntTitle: getVal('set-cnt-title'),
     cntDate: getVal('set-cnt-date'),
     language: getVal('set-language'),
+    icalUrl: getVal('set-ical-url'),
     burnIn: getChk('set-burnin'),
     showSeconds: getChk('set-show-seconds'),
     showQuote: getChk('set-show-quote'),
@@ -579,7 +591,7 @@ function initSettingsLogic() {
     };
   });
 
-  ['set-accent', 'set-font', 'set-bright', 'set-blur', 'set-size', 'set-opacity', 'set-glass-opacity', 'set-user-name', 'set-news-url'].forEach(id => {
+ ['set-accent', 'set-font', 'set-bright', 'set-blur', 'set-size', 'set-opacity', 'set-glass-opacity', 'set-user-name', 'set-news-url', 'set-ical-url'].forEach(id => { 
     document.getElementById(id)?.addEventListener(id === 'set-font' ? 'change' : 'input', savePreferences);
   });
   
@@ -628,85 +640,6 @@ function setupBurnInProtection() {
       }, 8000);
     }, 300000);
   }
-}
-function renderCalendarSystem() {
-  const grid = document.getElementById('cal-grid');
-  const eventList = document.getElementById('event-list');
-  const realNow = new Date();
-  
-  const year = calendarDisplayDate.getFullYear(); 
-  const month = calendarDisplayDate.getMonth();
-  
-  const months = [t('jan'), t('feb'), t('mar'), t('apr'), t('may'), t('jun'), t('jul'), t('aug'), t('sep'), t('oct'), t('nov'), t('dec')];
-  const prefs = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
-  
-  let myStr = `${months[month]} ${year}`;
-  if (prefs.language === 'ja' || (!prefs.language && navigator.language.startsWith('ja'))) myStr = `${year}年 ${months[month]}`;
-  else if (prefs.language === 'ko' || (!prefs.language && navigator.language.startsWith('ko'))) myStr = `${year}년 ${months[month]}`;
-
-  const calendarCard = document.getElementById('card-calendar');
-  const headerParent = calendarCard ? calendarCard.querySelector('.label-std') : null;
-
-  if (headerParent) {
-      headerParent.style.display = 'flex';
-      headerParent.style.justifyContent = 'space-between';
-      headerParent.style.alignItems = 'center';
-      headerParent.style.padding = '0';
-      
-      headerParent.innerHTML = `
-        <div id="cal-prev" style="cursor:pointer; opacity:0.6; padding: 8px 20px; font-family:var(--clock-font); user-select: none; font-size: 1.2rem;">◀</div>
-        <span id="cal-title" style="font-weight:600; user-select: none;">${myStr}</span>
-        <div id="cal-next" style="cursor:pointer; opacity:0.6; padding: 8px 20px; font-family:var(--clock-font); user-select: none; font-size: 1.2rem;">▶</div>
-      `;
-
-      document.getElementById('cal-prev').onclick = (e) => {
-        e.stopPropagation();
-        calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1);
-        renderCalendarSystem();
-      };
-      document.getElementById('cal-next').onclick = (e) => {
-        e.stopPropagation();
-        calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1);
-        renderCalendarSystem();
-      };
-  }
-
-  const days = [t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')];
-  grid.innerHTML = days.map(w => `<div class="cal-head">${w}</div>`).join('');
-  
-  const firstDay = new Date(year, month, 1).getDay();
-  const lastDate = new Date(year, month+1, 0).getDate();
-  
-  for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
-  
-  for(let d=1; d<=lastDate; d++) {
-    const cell = document.createElement('div');
-    cell.className = 'cal-cell'; cell.innerText = d;
-    if(d === realNow.getDate() && month === realNow.getMonth() && year === realNow.getFullYear()) {
-        cell.classList.add('cal-today');
-    }
-    const key = `event_${year}_${month}_${d}`;
-    if(localStorage.getItem(key)) cell.classList.add('cal-has-event');
-    cell.onclick = () => openEventModal(year, month, d);
-    grid.appendChild(cell);
-  }
-  
-  eventList.innerHTML = ''; let h = false;
-  for(let d=1; d<=lastDate; d++) {
-    const k = `event_${year}_${month}_${d}`; const v = localStorage.getItem(k);
-    if(v) { h=true; const r=document.createElement('div'); r.className='event-row'; r.innerHTML=`<span class="event-date-badge">${d}</span><span class="event-content">${v}</span>`; r.onclick = () => openEventModal(year, month, d); eventList.appendChild(r); }
-  }
-  if(!h) eventList.innerHTML = `<div style="opacity:0.5; font-size:0.8rem; text-align:center; padding:10px;">${t('no_events')}</div>`;
-}
-
-function openEventModal(year, month, day) {
-  const modal = document.getElementById('event-modal'); const input = document.getElementById('ev-input'); const dateLabel = document.getElementById('ev-modal-date');
-  const closeBtn = document.getElementById('close-event'); const saveBtn = document.getElementById('ev-save'); const delBtn = document.getElementById('ev-delete');
-  currentEventKey = `event_${year}_${month}_${day}`; const currentVal = localStorage.getItem(currentEventKey) || "";
-  dateLabel.innerText = t('date_modal_title', { month: month + 1, day: day }); input.value = currentVal; modal.classList.add('show'); input.focus();
-  const close = () => modal.classList.remove('show'); closeBtn.onclick = close; modal.onclick = (e) => { if(e.target === modal) close(); };
-  saveBtn.onclick = () => { if(input.value) localStorage.setItem(currentEventKey, input.value); else localStorage.removeItem(currentEventKey); renderCalendarSystem(); close(); };
-  delBtn.onclick = () => { localStorage.removeItem(currentEventKey); renderCalendarSystem(); close(); }; input.onkeydown = (e) => { if(e.key === 'Enter') saveBtn.click(); };
 }
 function setupCountdown() {
   const update = () => {
@@ -1304,3 +1237,281 @@ function focusSearchInput() {
     input.select();
   }
 }
+function syncGoogleCalendar() {
+  const prefs = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
+  if (!prefs.icalUrl) {
+    googleEventsCache = {};
+    renderCalendarSystem();
+    return;
+  }
+
+  chrome.runtime.sendMessage({ action: "fetchCalendar", url: prefs.icalUrl }, (res) => {
+    if (!res || res.error || !res.data) return;
+    
+    const events = {};
+    const lines = res.data.split(/\r\n|\n|\r/);
+    let inEvent = false;
+    let currentDate = null;
+    let currentSummary = "";
+    let timeStr = ""; 
+    
+    lines.forEach(line => {
+      if (line.startsWith('BEGIN:VEVENT')) { 
+        inEvent = true; 
+        currentDate = null; 
+        currentSummary = ""; 
+        timeStr = ""; 
+      }
+      
+      if (line.startsWith('END:VEVENT')) { 
+        inEvent = false; 
+        if (currentDate && currentSummary) {
+          
+          const finalTitle = timeStr ? `${timeStr} ${currentSummary}` : currentSummary;
+          
+          if (events[currentDate]) {
+          
+            events[currentDate] += ` / ${finalTitle}`;
+          } else {
+            events[currentDate] = finalTitle;
+          }
+        }
+      }
+      
+      if (inEvent) {
+       
+        if (line.startsWith('DTSTART;VALUE=DATE:')) {
+          const d = line.split(':')[1].trim();
+          if(d.length === 8) currentDate = `${parseInt(d.substring(0,4))}_${parseInt(d.substring(4,6))-1}_${parseInt(d.substring(6,8))}`;
+        } 
+    
+        else if (line.startsWith('DTSTART')) {
+          const val = line.split(':')[1].trim(); 
+          if(val.includes('T') && val.length >= 15) {
+             const y = parseInt(val.substring(0,4));
+             const m = parseInt(val.substring(4,6)) - 1;
+             const d = parseInt(val.substring(6,8));
+             const h = parseInt(val.substring(9,11));
+             const min = parseInt(val.substring(11,13));
+             
+             
+             let dateObj;
+             if (val.endsWith('Z')) {
+               dateObj = new Date(Date.UTC(y, m, d, h, min));
+             } else {
+               dateObj = new Date(y, m, d, h, min);
+             }
+
+             
+             const jYear = dateObj.getFullYear();
+             const jMonth = dateObj.getMonth();
+             const jDate = dateObj.getDate();
+             currentDate = `${jYear}_${jMonth}_${jDate}`;
+
+             
+             const jH = String(dateObj.getHours()).padStart(2, '0');
+             const jM = String(dateObj.getMinutes()).padStart(2, '0');
+             timeStr = `${jH}:${jM}`;
+          }
+        }
+        
+        if (line.startsWith('SUMMARY:')) currentSummary = line.substring(8);
+      }
+    });
+
+    googleEventsCache = events;
+    renderCalendarSystem();
+  });
+}
+function renderCalendarSystem() {
+  const grid = document.getElementById('cal-grid');
+  const eventList = document.getElementById('event-list');
+  const realNow = new Date();
+  
+  const year = calendarDisplayDate.getFullYear(); 
+  const month = calendarDisplayDate.getMonth();
+  
+  const months = [t('jan'), t('feb'), t('mar'), t('apr'), t('may'), t('jun'), t('jul'), t('aug'), t('sep'), t('oct'), t('nov'), t('dec')];
+  const prefs = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
+  
+  let myStr = `${months[month]} ${year}`;
+  if (prefs.language === 'ja' || (!prefs.language && navigator.language.startsWith('ja'))) myStr = `${year}年 ${months[month]}`;
+  else if (prefs.language === 'ko' || (!prefs.language && navigator.language.startsWith('ko'))) myStr = `${year}년 ${months[month]}`;
+
+  const calendarCard = document.getElementById('card-calendar');
+  const headerParent = calendarCard ? calendarCard.querySelector('.label-std') : null;
+
+  if (headerParent) {
+      if (!headerParent.querySelector('#cal-prev')) {
+        headerParent.style.display = 'flex';
+        headerParent.style.justifyContent = 'space-between';
+        headerParent.style.alignItems = 'center';
+        headerParent.style.padding = '0';
+        
+        headerParent.innerHTML = `
+          <div id="cal-prev" style="cursor:pointer; opacity:0.6; padding: 8px 20px; font-family:var(--clock-font); user-select: none; font-size: 1.2rem;">◀</div>
+          <span id="cal-title" style="font-weight:600; user-select: none;">${myStr}</span>
+          <div id="cal-next" style="cursor:pointer; opacity:0.6; padding: 8px 20px; font-family:var(--clock-font); user-select: none; font-size: 1.2rem;">▶</div>
+        `;
+        document.getElementById('cal-prev').onclick = (e) => { e.stopPropagation(); calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); renderCalendarSystem(); };
+        document.getElementById('cal-next').onclick = (e) => { e.stopPropagation(); calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); renderCalendarSystem(); };
+      } else {
+        document.getElementById('cal-title').innerText = myStr;
+      }
+  }
+
+  const days = [t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')];
+  grid.innerHTML = days.map(w => `<div class="cal-head">${w}</div>`).join('');
+  
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month+1, 0).getDate();
+  
+  for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
+  
+  for(let d=1; d<=lastDate; d++) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-cell'; cell.innerText = d;
+    if(d === realNow.getDate() && month === realNow.getMonth() && year === realNow.getFullYear()) {
+        cell.classList.add('cal-today');
+    }
+    
+    const key = `event_${year}_${month}_${d}`;
+    const localVal = localStorage.getItem(key);
+    const googleVal = googleEventsCache[`${year}_${month}_${d}`];
+    
+    if(localVal || googleVal) cell.classList.add('cal-has-event');
+    
+    cell.onclick = () => openEventModal(year, month, d, localVal, googleVal);
+    grid.appendChild(cell);
+  }
+  
+  eventList.innerHTML = ''; let h = false;
+  for(let d=1; d<=lastDate; d++) {
+    const key = `event_${year}_${month}_${d}`;
+    const localVal = localStorage.getItem(key);
+    const googleVal = googleEventsCache[`${year}_${month}_${d}`];
+    
+    if(localVal || googleVal) { 
+        h=true; 
+        // 絵文字削除: メモなら📝をつけるが、Google予定はそのまま表示
+        const displayText = localVal ? `📝 ${localVal}` : googleVal;
+        
+        const r=document.createElement('div'); 
+        r.className='event-row'; 
+        r.innerHTML=`<span class="event-date-badge">${d}</span><span class="event-content">${displayText}</span>`; 
+        
+        // クリック時の挙動: Google予定のみならGoogleへ飛ぶ、メモがあるなら編集モーダルへ
+        r.onclick = () => {
+            if (!localVal && googleVal) {
+                // Googleカレンダーの日表示URLを作成して開く
+                const pad = (n) => String(n).padStart(2, '0');
+                const url = `https://calendar.google.com/calendar/r/day/${year}/${pad(month+1)}/${pad(d)}`;
+                window.open(url, '_blank');
+            } else {
+                openEventModal(year, month, d, localVal, googleVal); 
+            }
+        };
+        eventList.appendChild(r); 
+    }
+  }
+  if(!h) eventList.innerHTML = `<div style="opacity:0.5; font-size:0.8rem; text-align:center; padding:10px;">${t('no_events')}</div>`;
+}
+
+
+
+
+function openEventModal(year, month, day, localVal, googleVal) {
+  const modal = document.getElementById('event-modal'); 
+  const input = document.getElementById('ev-input'); 
+  const dateLabel = document.getElementById('ev-modal-date');
+  const closeBtn = document.getElementById('close-event'); 
+  const saveBtn = document.getElementById('ev-save'); 
+  const delBtn = document.getElementById('ev-delete');
+  
+
+  const currentEventKey = `event_${year}_${month}_${day}`; 
+  
+  dateLabel.innerText = t('date_modal_title', { month: month + 1, day: day }); 
+  
+  
+  if (localVal) {
+      input.value = localVal;
+  } else if (googleVal) {
+
+      input.value = googleVal.replace(/^\d{2}:\d{2}\s/, ''); 
+  } else {
+      input.value = "";
+  }
+  input.placeholder = t('event_name_placeholder');
+
+  
+  const oldGoBtn = document.getElementById('ev-google-jump');
+  if(oldGoBtn) oldGoBtn.remove();
+
+  if(googleVal) {
+      const goBtn = document.createElement('button');
+      goBtn.id = 'ev-google-jump';
+      goBtn.className = 'st-btn';
+      goBtn.style.marginRight = 'auto';
+      goBtn.style.backgroundColor = 'rgba(255,255,255,0.1)';
+      goBtn.innerText = 'GCal ↗';
+      goBtn.onclick = () => {
+          const pad = (n) => String(n).padStart(2, '0');
+          const url = `https://calendar.google.com/calendar/r/day/${year}/${pad(month+1)}/${pad(day)}`;
+          window.open(url, '_blank');
+      };
+      const actionsDiv = modal.querySelector('.modal-actions');
+      actionsDiv.insertBefore(goBtn, actionsDiv.firstChild);
+  }
+
+  modal.classList.add('show'); 
+  input.focus();
+  
+  const close = () => modal.classList.remove('show'); 
+  closeBtn.onclick = close; 
+  modal.onclick = (e) => { if(e.target === modal) close(); };
+  
+
+  saveBtn.onclick = () => { 
+      const text = input.value;
+      if(text) {
+          
+          localStorage.setItem(currentEventKey, text);
+
+          
+          const pad = (n) => String(n).padStart(2, '0');
+          const sDate = `${year}${pad(month+1)}${pad(day)}`;
+          const eDate = `${year}${pad(month+1)}${pad(day+1)}`;
+          const gUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(text)}&dates=${sDate}/${eDate}`;
+          window.open(gUrl, '_blank', 'width=700,height=600');
+      } else {
+          
+          localStorage.removeItem(currentEventKey);
+      }
+      
+      renderCalendarSystem(); 
+      close(); 
+  };
+  
+  
+  delBtn.onclick = () => { 
+  
+      localStorage.removeItem(currentEventKey); 
+      
+     
+      if(googleVal) {
+          alert("Googleカレンダーの予定は、Googleの画面から削除してください。");
+          const pad = (n) => String(n).padStart(2, '0');
+          const url = `https://calendar.google.com/calendar/r/day/${year}/${pad(month+1)}/${pad(day)}`;
+          window.open(url, '_blank');
+      }
+      
+      renderCalendarSystem(); 
+      close(); 
+  }; 
+  
+  input.onkeydown = (e) => { if(e.key === 'Enter') saveBtn.click(); };
+}
+setTimeout(syncGoogleCalendar, 2000);
+setInterval(syncGoogleCalendar, 5 * 60 * 1000);
+window.addEventListener('focus', syncGoogleCalendar);

@@ -94,5 +94,6 @@
     lang_auto: "自動 (Auto)",
     lang_ja: "日本語",
     lang_en: "English",
-    lang_ko: "한국어"
+    lang_ko: "한국어",
+    lang_zh_cn: "简体中文"
 };

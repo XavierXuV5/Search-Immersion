@@ -12,7 +12,7 @@
   "host_permissions": [
     "*://*/*",
     "https://raw.githubusercontent.com/*",
-    "https://calendar.google.com/*" 
+    "https://calendar.google.com/*"
   ],
   "chrome_url_overrides": {
     "newtab": "newtab.html"
@@ -24,7 +24,7 @@
     {
       "matches": ["*://www.google.com/*", "*://www.google.co.jp/*"],
       "css": ["styles.css"],
-      "js": ["i18n/ja.js", "i18n/en.js", "i18n/ko.js", "content.js"],
+      "js": ["i18n/ja.js", "i18n/en.js", "i18n/ko.js", "i18n/zh_cn.js", "content.js"],
       "run_at": "document_end"
     }
   ]

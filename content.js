@@ -13,12 +13,12 @@ const defaultSettings = {
   cntTitle: 'イベント',
   cntDate: '',
   burnIn: false,
-  userName: 'User', 
+  userName: 'User',
   showSeconds: false,
   showQuote: true,
   showWeather: true,
   showNews: true,
-  newsUrl: '', 
+  newsUrl: '',
   showCountdown: true,
   showMusic: true,
   showCalendar: true,
@@ -40,7 +40,7 @@ function t(key, params = {}) {
   let lang = prefs.language || 'auto';
   if (lang === 'auto') {
     const navLang = navigator.language.slice(0, 2);
-    lang = (navLang === 'ja' || navLang === 'ko') ? navLang : 'en'; 
+    lang = (navLang === 'ja' || navLang === 'ko' || navLang === 'zh') ? navLang : 'en';
   }
   const dict = translations[lang] || translations.en || {};
   const enDict = translations.en || {};
@@ -100,7 +100,7 @@ function initNestHub() {
   root.id = 'immersion-root';
   const city = localStorage.getItem('immersion_city') || 'Tokyo';
   const savedMemo = localStorage.getItem('immersion_memo') || '';
-  
+
   root.innerHTML = `
     <div id="bg-layer"></div>
 
@@ -229,6 +229,7 @@ function initNestHub() {
                   <option value="ja">${t('lang_ja')}</option>
                   <option value="en">${t('lang_en')}</option>
                   <option value="ko">${t('lang_ko')}</option>
+                  <option value="zh_cn">${t('lang_zh_cn')}</option>
                 </select>
               </div>
               <div class="st-row"><span>${t('newtab_redirect')}</span><label class="toggle-switch"><input type="checkbox" id="set-newtab-redirect"><span class="slider"></span></label></div>
@@ -365,15 +366,15 @@ function initNestHub() {
   `;
 
   document.body.appendChild(root);
-  
+
   chrome.storage.local.get(['redirectNewTab'], (r) => {
     const el = document.getElementById('set-newtab-redirect');
-    if(el) el.checked = r.redirectNewTab !== false; 
+    if(el) el.checked = r.redirectNewTab !== false;
   });
 
-  applyPreferences(); 
+  applyPreferences();
   renderDock();
-  initSettingsLogic(); 
+  initSettingsLogic();
   setupDockContextMenu();
   startClock();
   focusSearchInput();
@@ -381,11 +382,11 @@ function initNestHub() {
   setupMemo();
   setupCountdown();
   setupZenMode();
-  setupBurnInProtection(); 
+  setupBurnInProtection();
   renderCalendarSystem();
   fetchWeather(city);
   fetchNews();
-  updateQuote(); 
+  updateQuote();
   startMediaSync();
   initTiltEffect();
   initUpdateChecker();
@@ -397,7 +398,7 @@ function setupDockContextMenu() {
   const menu = document.getElementById('dock-context-menu');
   const editBtn = document.getElementById('ctx-edit');
   const delBtn = document.getElementById('ctx-del');
-  
+
   document.addEventListener('click', (e) => {
     if (menu) menu.classList.remove('show');
   });
@@ -405,7 +406,7 @@ function setupDockContextMenu() {
   if(editBtn) editBtn.onclick = () => {
      if(contextMenuTargetIndex >= 0) openDockEditModal(contextMenuTargetIndex);
   };
-  
+
   if(delBtn) delBtn.onclick = () => {
     if(contextMenuTargetIndex >= 0) {
         const items = getDockItems();
@@ -413,18 +414,18 @@ function setupDockContextMenu() {
             items.splice(contextMenuTargetIndex, 1);
             localStorage.setItem('immersion_dock_items', JSON.stringify(items));
             renderDock();
-            renderDockSettingsList(); 
+            renderDockSettingsList();
         }
     }
   };
-  
+
   const modal = document.getElementById('dock-edit-modal');
   const closeBtn = document.getElementById('close-dock-edit');
   const saveBtn = document.getElementById('dock-edit-save');
-  
+
   if(closeBtn) closeBtn.onclick = () => modal.classList.remove('show');
   if(modal) modal.onclick = (e) => { if(e.target === modal) modal.classList.remove('show'); };
-  
+
   if(saveBtn) saveBtn.onclick = () => {
       const iconVal = document.getElementById('dock-edit-icon').value;
       const urlVal = document.getElementById('dock-edit-url').value;
@@ -446,7 +447,7 @@ function openDockEditModal(index) {
     document.getElementById('dock-edit-icon').value = item.icon;
     document.getElementById('dock-edit-url').value = item.url;
     contextMenuTargetIndex = index;
-    
+
     document.getElementById('dock-edit-modal').classList.add('show');
 }
 
@@ -460,11 +461,11 @@ function applyPreferences() {
   rootStyle.setProperty('--bg-opacity', prefs.bgOpacity || '1.0');
   rootStyle.setProperty('--glass-opacity', prefs.glassOpacity || '0.55');
   rootStyle.setProperty('--clock-size', (prefs.clockSize || '10') + 'rem');
-  
+
   const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
-  
-  setVal('set-user-name', prefs.userName || 'User'); 
-  setVal('set-news-url', prefs.newsUrl || ''); 
+
+  setVal('set-user-name', prefs.userName || 'User');
+  setVal('set-news-url', prefs.newsUrl || '');
   setVal('set-ical-url', prefs.icalUrl || '');
   const ownerLabel = document.getElementById('about-owner-name');
   if(ownerLabel) ownerLabel.innerText = prefs.userName || 'User';
@@ -490,7 +491,7 @@ function applyPreferences() {
   setCheck('set-show-countdown', prefs.showCountdown);
   setCheck('set-show-music', prefs.showMusic);
   setCheck('set-show-calendar', prefs.showCalendar);
-  
+
   setCheck('set-media-yt', prefs.mediaYT);
   setCheck('set-media-ytm', prefs.mediaYTMusic);
   setCheck('set-media-spotify', prefs.mediaSpotify);
@@ -501,7 +502,7 @@ function applyPreferences() {
 
   const toggle = (id, visible) => {
     const el = document.getElementById(id);
-    if(el) el.style.display = (visible === false) ? 'none' : 'flex'; 
+    if(el) el.style.display = (visible === false) ? 'none' : 'flex';
     if(id === 'quote-box' && el) el.style.display = (visible === false) ? 'none' : 'block';
   };
 
@@ -517,9 +518,9 @@ function applyPreferences() {
 function savePreferences() {
   const getVal = (id) => document.getElementById(id)?.value;
   const getChk = (id) => document.getElementById(id)?.checked;
-  
+
   const prefs = {
-    userName: getVal('set-user-name'), 
+    userName: getVal('set-user-name'),
     accent: getVal('set-accent'),
     clockFont: getVal('set-font'),
     bgBrightness: getVal('set-bright'),
@@ -537,7 +538,7 @@ function savePreferences() {
     showQuote: getChk('set-show-quote'),
     showWeather: getChk('set-show-weather'),
     showNews: getChk('set-show-news'),
-    newsUrl: getVal('set-news-url'), 
+    newsUrl: getVal('set-news-url'),
     showCountdown: getChk('set-show-countdown'),
     mediaYT: getChk('set-media-yt'),
     mediaYTMusic: getChk('set-media-ytm'),
@@ -546,7 +547,7 @@ function savePreferences() {
     mediaBackground: getChk('set-media-bg'),
     showZenMode: getChk('set-show-zen')
   };
-  
+
   const prevLang = JSON.parse(localStorage.getItem('immersion_prefs'))?.language;
   localStorage.setItem('immersion_prefs', JSON.stringify(prefs));
 
@@ -555,46 +556,46 @@ function savePreferences() {
       initNestHub();
       document.getElementById('settings-btn').click();
       document.getElementById('settings-modal').classList.add('show');
-      return; 
+      return;
   }
 
-  applyPreferences();      
-  setupBurnInProtection(); 
+  applyPreferences();
+  setupBurnInProtection();
   updateQuote();
-  fetchNews(); 
-}  
+  fetchNews();
+}
 
 
 function initSettingsLogic() {
   const modal = document.getElementById('settings-modal');
   const openBtn = document.getElementById('settings-btn');
   const closeBtn = document.getElementById('close-settings');
-  
+
   openBtn.onclick = (e) => { e.stopPropagation(); modal.classList.add('show'); renderDockSettingsList(); };
   closeBtn.onclick = () => modal.classList.remove('show');
   modal.onclick = (e) => { if(e.target === modal) modal.classList.remove('show'); };
-  
+
   const tabs = document.querySelectorAll('.st-tab-btn');
   const sections = document.querySelectorAll('.st-section');
   const title = document.getElementById('st-header-title');
-  
+
   tabs.forEach(tab => {
     tab.onclick = () => {
       tabs.forEach(t => t.classList.remove('active'));
       sections.forEach(s => s.classList.remove('active'));
-      
+
       tab.classList.add('active');
       const targetId = tab.getAttribute('data-tab');
       document.getElementById(targetId).classList.add('active');
-      
-      title.innerText = tab.innerText.replace(/^[^\s]+\s/, ''); 
+
+      title.innerText = tab.innerText.replace(/^[^\s]+\s/, '');
     };
   });
 
- ['set-accent', 'set-font', 'set-bright', 'set-blur', 'set-size', 'set-opacity', 'set-glass-opacity', 'set-user-name', 'set-news-url', 'set-ical-url'].forEach(id => { 
+ ['set-accent', 'set-font', 'set-bright', 'set-blur', 'set-size', 'set-opacity', 'set-glass-opacity', 'set-user-name', 'set-news-url', 'set-ical-url'].forEach(id => {
     document.getElementById(id)?.addEventListener(id === 'set-font' ? 'change' : 'input', savePreferences);
   });
-  
+
   document.getElementById('set-language')?.addEventListener('change', savePreferences);
 
   [
@@ -619,7 +620,7 @@ function initSettingsLogic() {
     savePreferences();
     alert("イベントを設定しました");
   };
-  
+
   document.getElementById('add-dock-item-btn').onclick = addDockItem;
 }
 
@@ -633,7 +634,7 @@ function setupBurnInProtection() {
         document.body.classList.remove('burn-in-active');
         const root = document.getElementById('immersion-root');
         if(root) {
-          const x = Math.floor(Math.random() * 6) - 3; 
+          const x = Math.floor(Math.random() * 6) - 3;
           const y = Math.floor(Math.random() * 6) - 3;
           root.style.padding = `${30 + y}px ${30 + x}px ${30 - y}px ${30 - x}px`;
         }
@@ -648,24 +649,24 @@ function setupCountdown() {
     if (!prefs.cntDate) { titleEl.innerText = "NO EVENT"; daysEl.innerText = "--"; hmsEl.innerText = "--:--:--"; return; }
     titleEl.innerText = prefs.cntTitle || t('event');
     const target = new Date(prefs.cntDate).getTime(); const now = new Date().getTime(); const diff = target - now;
-    if (diff < 0) { daysEl.innerText = "0"; hmsEl.innerText = "FINISHED"; } 
+    if (diff < 0) { daysEl.innerText = "0"; hmsEl.innerText = "FINISHED"; }
     else { const d = Math.floor(diff / (1000 * 60 * 60 * 24)); const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)); const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)); const s = Math.floor((diff % (1000 * 60)) / 1000); daysEl.innerText = d; hmsEl.innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
   }; setInterval(update, 1000); update();
 }
 function getDockItems() { const saved = localStorage.getItem('immersion_dock_items'); return saved ? JSON.parse(saved) : defaultDockItems; }
 function renderDock() {
   const dock = document.getElementById('main-dock'); const items = getDockItems(); const existing = dock.querySelectorAll('.dynamic-dock-item'); existing.forEach(el => el.remove());
-  items.forEach((item, index) => { 
-    const div = document.createElement('div'); 
-    div.className = 'dock-item tilt-card dynamic-dock-item'; 
+  items.forEach((item, index) => {
+    const div = document.createElement('div');
+    div.className = 'dock-item tilt-card dynamic-dock-item';
     if (item.icon && (item.icon.startsWith('http') || item.icon.startsWith('data:image'))) {
         div.style.overflow = 'hidden';
         div.innerHTML = `<img src="${item.icon}" style="width:100%; height:100%; object-fit:cover; display:block; pointer-events:none;" onerror="this.style.display='none'; this.parentElement.innerText='${item.icon.replace(/'/g, "\\'")}';">`;
     } else {
-        div.innerText = item.icon; 
+        div.innerText = item.icon;
     }
-    div.title = item.url; 
-    div.onclick = () => { if(item.url.includes('%s')) { const input = document.getElementById('search-input'); const v = input.value; window.location.href = v ? item.url.replace('%s', encodeURIComponent(v)) : item.url.split('?')[0]; } else { window.location.href = item.url; } }; 
+    div.title = item.url;
+    div.onclick = () => { if(item.url.includes('%s')) { const input = document.getElementById('search-input'); const v = input.value; window.location.href = v ? item.url.replace('%s', encodeURIComponent(v)) : item.url.split('?')[0]; } else { window.location.href = item.url; } };
     div.oncontextmenu = (e) => {
       e.preventDefault(); e.stopPropagation();
       contextMenuTargetIndex = index;
@@ -673,19 +674,19 @@ function renderDock() {
       menu.style.top = e.clientY + 'px'; menu.style.left = e.clientX + 'px';
       menu.classList.add('show');
     };
-    dock.insertBefore(div, document.querySelector('.dock-separator')); 
-  }); 
+    dock.insertBefore(div, document.querySelector('.dock-separator'));
+  });
   initTiltEffect();
 }
 function renderDockSettingsList() {
-  const list = document.getElementById('dock-settings-list'); 
-  list.innerHTML = ''; 
+  const list = document.getElementById('dock-settings-list');
+  list.innerHTML = '';
   const items = getDockItems();
-  
-  items.forEach((item, index) => { 
-    const row = document.createElement('div'); 
-    row.className = 'dock-setting-row'; 
-    
+
+  items.forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'dock-setting-row';
+
     row.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
         <span class="ds-label">${t('icon_label')}</span>
@@ -698,16 +699,16 @@ function renderDockSettingsList() {
       <input type="text" class="ds-icon" value="${item.icon}" placeholder="${t('icon_placeholder')}">
       <div class="ds-label" style="margin-top:8px;">${t('url_label')}</div>
       <input type="text" class="ds-url" value="${item.url}" placeholder="${t('url_label')}">
-    `; 
-    
-    const iI = row.querySelector('.ds-icon'); 
-    const uI = row.querySelector('.ds-url'); 
-    const d = row.querySelector('.ds-del-inline'); 
-    
-    const save = () => { items[index].icon = iI.value; items[index].url = uI.value; localStorage.setItem('immersion_dock_items', JSON.stringify(items)); renderDock(); }; 
-    iI.oninput = save; uI.oninput = save; 
-    
-    d.onclick = () => { items.splice(index, 1); localStorage.setItem('immersion_dock_items', JSON.stringify(items)); renderDockSettingsList(); renderDock(); }; 
+    `;
+
+    const iI = row.querySelector('.ds-icon');
+    const uI = row.querySelector('.ds-url');
+    const d = row.querySelector('.ds-del-inline');
+
+    const save = () => { items[index].icon = iI.value; items[index].url = uI.value; localStorage.setItem('immersion_dock_items', JSON.stringify(items)); renderDock(); };
+    iI.oninput = save; uI.oninput = save;
+
+    d.onclick = () => { items.splice(index, 1); localStorage.setItem('immersion_dock_items', JSON.stringify(items)); renderDockSettingsList(); renderDock(); };
 
     const upBtn = row.querySelector('.ds-up');
     if(upBtn) {
@@ -728,17 +729,17 @@ function renderDockSettingsList() {
         };
     }
 
-    list.appendChild(row); 
+    list.appendChild(row);
   });
 }
 
 function addDockItem() { const items = getDockItems(); items.push({ icon: "🔗", url: "https://example.com" }); localStorage.setItem('immersion_dock_items', JSON.stringify(items)); renderDockSettingsList(); renderDock(); }
 function debounce(func, wait) { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), wait); }; }
 
-function setupSearch() { 
-  const input = document.getElementById('search-input'); 
+function setupSearch() {
+  const input = document.getElementById('search-input');
   const clearBtn = document.getElementById('search-clear');
-  
+
   const updateClearBtn = () => {
     if(input.value) clearBtn.style.display = 'block';
     else clearBtn.style.display = 'none';
@@ -756,20 +757,20 @@ function setupSearch() {
     }
   };
 
-  input.addEventListener('keydown', (e) => { 
+  input.addEventListener('keydown', (e) => {
     if(e.key === 'Enter' && input.value) {
        const activeItem = document.querySelector('.suggestion-item.active');
        if (activeItem) {
           return;
        }
-       
+
        const val = input.value.trim();
        let isUrl = false;
-       
+
        const hasProtocol = /^[a-zA-Z]+:\/\//.test(val);
        const isDomain = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(:[0-9]+)?(\/.*)?$/.test(val);
        const noSpaces = !val.includes(' ');
-       
+
        if (hasProtocol) {
            window.location.href = val;
            return;
@@ -779,15 +780,15 @@ function setupSearch() {
            return;
        }
 
-       window.location.href = `https://www.google.com/search?q=${encodeURIComponent(val)}`; 
+       window.location.href = `https://www.google.com/search?q=${encodeURIComponent(val)}`;
     }
-  }); 
+  });
 
-  document.getElementById('change-city').onclick = () => { 
-    const c = prompt("City Name (English):", "Tokyo"); 
-    if(c) { localStorage.setItem('immersion_city', c); fetchWeather(c); } 
+  document.getElementById('change-city').onclick = () => {
+    const c = prompt("City Name (English):", "Tokyo");
+    if(c) { localStorage.setItem('immersion_city', c); fetchWeather(c); }
   };
-  
+
   setupSearchAutocomplete(input);
 }
 
@@ -796,7 +797,7 @@ function setupSearchAutocomplete(input) {
   let currentFocus = -1;
 
   const fetchSuggestions = debounce((query) => {
-    
+
     const isEmp = !query || query.trim() === '';
 
     const historyPromise = new Promise((resolve) => {
@@ -820,7 +821,7 @@ function setupSearchAutocomplete(input) {
       const combined = [];
       const seenTitles = new Set();
       const maxHistory = 8;
-      
+
       const extractSearchTerm = (url) => {
         try {
           const u = new URL(url);
@@ -833,14 +834,14 @@ function setupSearchAutocomplete(input) {
 
       historyItems.forEach(h => {
         if (combined.length >= maxHistory) return;
-        
+
         const term = extractSearchTerm(h.url);
         if (term && !seenTitles.has(term)) {
           combined.push({ text: term, type: 'history', url: h.url });
           seenTitles.add(term);
         }
       });
-      
+
       googleItems.forEach(g => {
         if(combined.length < 8 && !seenTitles.has(g)) {
            combined.push({ text: g, type: 'search' });
@@ -864,7 +865,7 @@ function setupSearchAutocomplete(input) {
       div.className = 'suggestion-item';
       div.setAttribute('data-val', item.text);
       const icon = item.type === 'history' ? '🕒' : '🔍';
-      
+
       let innerHTML = `<div style="display:flex; align-items:center; flex:1; min-width:0;">
         <span style="opacity:0.6; margin-right:10px; flex-shrink:0;">${icon}</span> 
         <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.text}</span>
@@ -879,7 +880,7 @@ function setupSearchAutocomplete(input) {
         input.value = item.text;
         window.location.href = `https://www.google.com/search?q=${encodeURIComponent(item.text)}`;
       };
-      
+
       if (item.type === 'history') {
           const delBtn = div.querySelector('.suggestion-del');
           if(delBtn) {
@@ -900,8 +901,8 @@ function setupSearchAutocomplete(input) {
     currentFocus = -1;
   };
 
-  input.addEventListener('input', () => { 
-    fetchSuggestions(input.value); 
+  input.addEventListener('input', () => {
+    fetchSuggestions(input.value);
     if(!input.value) fetchSuggestions('');
   });
   const trigger = () => { if(!input.value) fetchSuggestions(''); };
@@ -934,7 +935,7 @@ function setupSearchAutocomplete(input) {
     items.forEach(item => item.classList.remove('active'));
     if (currentFocus >= 0 && items[currentFocus]) {
       items[currentFocus].classList.add('active');
-      input.value = items[currentFocus].getAttribute('data-val'); 
+      input.value = items[currentFocus].getAttribute('data-val');
     }
   };
 
@@ -951,7 +952,7 @@ function updateQuote() {
   const name = prefs.userName || "Guest";
   const now = new Date();
   const hour = now.getHours();
-  
+
   let greeting = "";
   let subText = "";
 
@@ -965,15 +966,15 @@ function updateQuote() {
     greeting = t('greeting_evening', { name });
     subText = t('subtext_evening');
   } else {
-    greeting = t('greeting_night', { name }); 
+    greeting = t('greeting_night', { name });
     subText = t('subtext_night');
   }
 
   const qText = document.getElementById('quote-text');
   const qAuthor = document.getElementById('quote-author');
-  
+
   if(qText) qText.innerText = greeting;
-  if(qAuthor) qAuthor.innerText = subText; 
+  if(qAuthor) qAuthor.innerText = subText;
 }
 
 function startClock() {
@@ -994,7 +995,7 @@ function startClock() {
     document.getElementById('clock-time').innerText = timeStr; document.getElementById('clock-date').innerText = dateStr;
   }; setInterval(update, 1000); update();
 }
-function fetchNews() { 
+function fetchNews() {
   const prefs = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
   const targetUrl = prefs.newsUrl;
   const list = document.getElementById("news-list");
@@ -1004,37 +1005,37 @@ function fetchNews() {
     return;
   }
 
-  chrome.runtime.sendMessage({ action: "fetchNews", url: targetUrl }, (res) => { 
+  chrome.runtime.sendMessage({ action: "fetchNews", url: targetUrl }, (res) => {
     if(!res || res.error || !res.data) {
         list.innerHTML = `<div style="padding:10px; opacity:0.7; text-align:center;">${t('news_error')}</div>`;
         return;
     }
-    
-    const parser = new DOMParser(); 
+
+    const parser = new DOMParser();
     try {
       const doc = parser.parseFromString(res.data, "text/xml");
-      const items = doc.querySelectorAll("item"); 
-      
-      list.innerHTML = ""; 
-      
+      const items = doc.querySelectorAll("item");
+
+      list.innerHTML = "";
+
       if (items.length === 0) {
          list.innerHTML = `<div style="padding:10px; opacity:0.7; text-align:center;">${t('news_no_articles')}</div>`;
          return;
       }
 
-      for(let i=0; i<6; i++) { 
-        if(!items[i]) break; 
-        const div = document.createElement("div"); 
-        div.className = "news-item"; 
-        div.innerText = items[i].querySelector("title").textContent; 
-        const link = items[i].querySelector("link").textContent; 
-        div.onclick = () => window.location.href = link; 
-        list.appendChild(div); 
+      for(let i=0; i<6; i++) {
+        if(!items[i]) break;
+        const div = document.createElement("div");
+        div.className = "news-item";
+        div.innerText = items[i].querySelector("title").textContent;
+        const link = items[i].querySelector("link").textContent;
+        div.onclick = () => window.location.href = link;
+        list.appendChild(div);
       }
     } catch(e) {
       list.innerHTML = `<div style="padding:10px; opacity:0.7; text-align:center;">${t('news_rss_error')}</div>`;
     }
-  }); 
+  });
 }
 
 
@@ -1043,9 +1044,9 @@ function initTiltEffect() { const cards = document.querySelectorAll('.tilt-card'
 
 function startMediaSync() {
   let currentArt = "";
-  const bgLayer = document.getElementById('bg-layer'); 
+  const bgLayer = document.getElementById('bg-layer');
   const container = document.getElementById('music-card-container');
-  
+
   const getIdleImage = () => {
     const prefs = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
     if (prefs.idleImgUrl && prefs.idleImgUrl.startsWith('http')) return prefs.idleImgUrl;
@@ -1058,8 +1059,8 @@ function startMediaSync() {
     if (!chrome.runtime?.id) { clearInterval(loop); return; }
     try {
       const prefs = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
-      
-      chrome.runtime.sendMessage({ 
+
+      chrome.runtime.sendMessage({
         action: "getYouTubeData",
         enabledSettings: {
           yt: prefs.mediaYT,
@@ -1068,20 +1069,20 @@ function startMediaSync() {
         }
       }, (res) => {
         if (chrome.runtime.lastError) return;
-        
+
         if (res && res.status === "connected" && (res.data.isPlaying || (res.data.title && res.data.title !== ""))) {
           container?.classList.remove('music-idle'); container?.classList.add('music-active');
           const d = res.data;
-          
+
           const titleEl = document.getElementById('track-title');
           if(titleEl) {
             const newTitle = d.title || "Unknown";
-           
+
             if (titleEl.innerText !== newTitle) {
-               titleEl.classList.remove('scroll-active'); 
-               titleEl.innerText = newTitle;              
-               
-               
+               titleEl.classList.remove('scroll-active');
+               titleEl.innerText = newTitle;
+
+
                if(titleEl.scrollWidth > titleEl.parentElement.clientWidth) {
                  titleEl.classList.add('scroll-active');
                }
@@ -1092,9 +1093,9 @@ function startMediaSync() {
           document.getElementById('btn-play').innerText = d.isPlaying ? "⏸" : "▶";
           if (d.artwork) {
              document.getElementById('album-art').style.backgroundImage = `url(${d.artwork})`;
-             if(prefs.mediaBackground && currentArt !== d.artwork && bgLayer) { 
-                 currentArt = d.artwork; 
-                 bgLayer.style.backgroundImage = `url(${d.artwork})`; 
+             if(prefs.mediaBackground && currentArt !== d.artwork && bgLayer) {
+                 currentArt = d.artwork;
+                 bgLayer.style.backgroundImage = `url(${d.artwork})`;
              } else if (!prefs.mediaBackground && currentArt !== 'default' && bgLayer) {
                  currentArt = 'default';
                  const p = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
@@ -1107,26 +1108,26 @@ function startMediaSync() {
           const now = new Date();
           const days = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
           const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-    document.getElementById('idle-day').innerText = t('sunday'); 
+    document.getElementById('idle-day').innerText = t('sunday');
 
     const longDays = [t('sunday'), t('monday'), t('tuesday'), t('wednesday'), t('thursday'), t('friday'), t('saturday')];
     document.getElementById('idle-day').innerText = longDays[now.getDay()];
     document.getElementById('idle-date').innerText = now.getDate();
-    
-    let idleMonthStr = `${t('dec')} ${now.getFullYear()}`; 
+
+    let idleMonthStr = `${t('dec')} ${now.getFullYear()}`;
     const mVals = [t('jan'), t('feb'), t('mar'), t('apr'), t('may'), t('jun'), t('jul'), t('aug'), t('sep'), t('oct'), t('nov'), t('dec')];
     const prefs = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
-    
+
     if(prefs.language === 'ja' || (!prefs.language && navigator.language.startsWith('ja'))) idleMonthStr = `${now.getFullYear()}年 ${mVals[now.getMonth()]}`;
     else if(prefs.language === 'ko' || (!prefs.language && navigator.language.startsWith('ko'))) idleMonthStr = `${now.getFullYear()}년 ${mVals[now.getMonth()]}`;
     else idleMonthStr = `${mVals[now.getMonth()]} ${now.getFullYear()}`;
-    
+
     document.getElementById('idle-month').innerText = idleMonthStr;
-    if(currentArt !== 'default' && bgLayer) { 
-            currentArt = 'default'; 
+    if(currentArt !== 'default' && bgLayer) {
+            currentArt = 'default';
             const p = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
             const targetImg = (p.idleImgUrl && p.idleImgUrl.startsWith('http')) ? p.idleImgUrl : sessionIdleArt;
-            bgLayer.style.backgroundImage = `url('${targetImg}')`; 
+            bgLayer.style.backgroundImage = `url('${targetImg}')`;
           }
         }
       });
@@ -1140,12 +1141,12 @@ function startMediaSync() {
 
 
 function initUpdateChecker() {
-  
+
   const CHECK_URL = 'https://raw.githubusercontent.com/naikaku1/Search-Immersion/refs/heads/main/manifest.json';
-  const DOWNLOAD_PAGE = 'https://github.com/naikaku1/Search-Immersion'; 
+  const DOWNLOAD_PAGE = 'https://github.com/naikaku1/Search-Immersion';
 
   const currentVersion = chrome.runtime.getManifest().version;
-  
+
   fetch(`${CHECK_URL}?t=${Date.now()}`)
     .then(res => {
       if (!res.ok) throw new Error('Update check failed');
@@ -1177,7 +1178,7 @@ function showUpdateBanner(newVer, linkUrl) {
 
   const banner = document.createElement('div');
   banner.id = 'immersion-update-banner';
-  
+
   Object.assign(banner.style, {
     position: 'fixed',
     bottom: '20px',
@@ -1213,7 +1214,7 @@ function showUpdateBanner(newVer, linkUrl) {
   `;
 
   banner.onclick = () => window.open(linkUrl, '_blank');
-  
+
   const closeBtn = banner.querySelector('#close-update-btn');
   closeBtn.onclick = (e) => {
     e.stopPropagation();
@@ -1247,54 +1248,54 @@ function syncGoogleCalendar() {
 
   chrome.runtime.sendMessage({ action: "fetchCalendar", url: prefs.icalUrl }, (res) => {
     if (!res || res.error || !res.data) return;
-    
+
     const events = {};
     const lines = res.data.split(/\r\n|\n|\r/);
     let inEvent = false;
     let currentDate = null;
     let currentSummary = "";
-    let timeStr = ""; 
-    
+    let timeStr = "";
+
     lines.forEach(line => {
-      if (line.startsWith('BEGIN:VEVENT')) { 
-        inEvent = true; 
-        currentDate = null; 
-        currentSummary = ""; 
-        timeStr = ""; 
+      if (line.startsWith('BEGIN:VEVENT')) {
+        inEvent = true;
+        currentDate = null;
+        currentSummary = "";
+        timeStr = "";
       }
-      
-      if (line.startsWith('END:VEVENT')) { 
-        inEvent = false; 
+
+      if (line.startsWith('END:VEVENT')) {
+        inEvent = false;
         if (currentDate && currentSummary) {
-          
+
           const finalTitle = timeStr ? `${timeStr} ${currentSummary}` : currentSummary;
-          
+
           if (events[currentDate]) {
-          
+
             events[currentDate] += ` / ${finalTitle}`;
           } else {
             events[currentDate] = finalTitle;
           }
         }
       }
-      
+
       if (inEvent) {
-       
+
         if (line.startsWith('DTSTART;VALUE=DATE:')) {
           const d = line.split(':')[1].trim();
           if(d.length === 8) currentDate = `${parseInt(d.substring(0,4))}_${parseInt(d.substring(4,6))-1}_${parseInt(d.substring(6,8))}`;
-        } 
-    
+        }
+
         else if (line.startsWith('DTSTART')) {
-          const val = line.split(':')[1].trim(); 
+          const val = line.split(':')[1].trim();
           if(val.includes('T') && val.length >= 15) {
              const y = parseInt(val.substring(0,4));
              const m = parseInt(val.substring(4,6)) - 1;
              const d = parseInt(val.substring(6,8));
              const h = parseInt(val.substring(9,11));
              const min = parseInt(val.substring(11,13));
-             
-             
+
+
              let dateObj;
              if (val.endsWith('Z')) {
                dateObj = new Date(Date.UTC(y, m, d, h, min));
@@ -1302,19 +1303,19 @@ function syncGoogleCalendar() {
                dateObj = new Date(y, m, d, h, min);
              }
 
-             
+
              const jYear = dateObj.getFullYear();
              const jMonth = dateObj.getMonth();
              const jDate = dateObj.getDate();
              currentDate = `${jYear}_${jMonth}_${jDate}`;
 
-             
+
              const jH = String(dateObj.getHours()).padStart(2, '0');
              const jM = String(dateObj.getMinutes()).padStart(2, '0');
              timeStr = `${jH}:${jM}`;
           }
         }
-        
+
         if (line.startsWith('SUMMARY:')) currentSummary = line.substring(8);
       }
     });
@@ -1327,13 +1328,13 @@ function renderCalendarSystem() {
   const grid = document.getElementById('cal-grid');
   const eventList = document.getElementById('event-list');
   const realNow = new Date();
-  
-  const year = calendarDisplayDate.getFullYear(); 
+
+  const year = calendarDisplayDate.getFullYear();
   const month = calendarDisplayDate.getMonth();
-  
+
   const months = [t('jan'), t('feb'), t('mar'), t('apr'), t('may'), t('jun'), t('jul'), t('aug'), t('sep'), t('oct'), t('nov'), t('dec')];
   const prefs = JSON.parse(localStorage.getItem('immersion_prefs')) || defaultSettings;
-  
+
   let myStr = `${months[month]} ${year}`;
   if (prefs.language === 'ja' || (!prefs.language && navigator.language.startsWith('ja'))) myStr = `${year}年 ${months[month]}`;
   else if (prefs.language === 'ko' || (!prefs.language && navigator.language.startsWith('ko'))) myStr = `${year}년 ${months[month]}`;
@@ -1347,7 +1348,7 @@ function renderCalendarSystem() {
         headerParent.style.justifyContent = 'space-between';
         headerParent.style.alignItems = 'center';
         headerParent.style.padding = '0';
-        
+
         headerParent.innerHTML = `
           <div id="cal-prev" style="cursor:pointer; opacity:0.6; padding: 8px 20px; font-family:var(--clock-font); user-select: none; font-size: 1.2rem;">◀</div>
           <span id="cal-title" style="font-weight:600; user-select: none;">${myStr}</span>
@@ -1362,44 +1363,44 @@ function renderCalendarSystem() {
 
   const days = [t('sun'), t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat')];
   grid.innerHTML = days.map(w => `<div class="cal-head">${w}</div>`).join('');
-  
+
   const firstDay = new Date(year, month, 1).getDay();
   const lastDate = new Date(year, month+1, 0).getDate();
-  
+
   for(let i=0; i<firstDay; i++) grid.innerHTML += `<div></div>`;
-  
+
   for(let d=1; d<=lastDate; d++) {
     const cell = document.createElement('div');
     cell.className = 'cal-cell'; cell.innerText = d;
     if(d === realNow.getDate() && month === realNow.getMonth() && year === realNow.getFullYear()) {
         cell.classList.add('cal-today');
     }
-    
+
     const key = `event_${year}_${month}_${d}`;
     const localVal = localStorage.getItem(key);
     const googleVal = googleEventsCache[`${year}_${month}_${d}`];
-    
+
     if(localVal || googleVal) cell.classList.add('cal-has-event');
-    
+
     cell.onclick = () => openEventModal(year, month, d, localVal, googleVal);
     grid.appendChild(cell);
   }
-  
+
   eventList.innerHTML = ''; let h = false;
   for(let d=1; d<=lastDate; d++) {
     const key = `event_${year}_${month}_${d}`;
     const localVal = localStorage.getItem(key);
     const googleVal = googleEventsCache[`${year}_${month}_${d}`];
-    
-    if(localVal || googleVal) { 
-        h=true; 
+
+    if(localVal || googleVal) {
+        h=true;
         // 絵文字削除: メモなら📝をつけるが、Google予定はそのまま表示
         const displayText = localVal ? `📝 ${localVal}` : googleVal;
-        
-        const r=document.createElement('div'); 
-        r.className='event-row'; 
-        r.innerHTML=`<span class="event-date-badge">${d}</span><span class="event-content">${displayText}</span>`; 
-        
+
+        const r=document.createElement('div');
+        r.className='event-row';
+        r.innerHTML=`<span class="event-date-badge">${d}</span><span class="event-content">${displayText}</span>`;
+
         // クリック時の挙動: Google予定のみならGoogleへ飛ぶ、メモがあるなら編集モーダルへ
         r.onclick = () => {
             if (!localVal && googleVal) {
@@ -1408,10 +1409,10 @@ function renderCalendarSystem() {
                 const url = `https://calendar.google.com/calendar/r/day/${year}/${pad(month+1)}/${pad(d)}`;
                 window.open(url, '_blank');
             } else {
-                openEventModal(year, month, d, localVal, googleVal); 
+                openEventModal(year, month, d, localVal, googleVal);
             }
         };
-        eventList.appendChild(r); 
+        eventList.appendChild(r);
     }
   }
   if(!h) eventList.innerHTML = `<div style="opacity:0.5; font-size:0.8rem; text-align:center; padding:10px;">${t('no_events')}</div>`;
@@ -1421,30 +1422,30 @@ function renderCalendarSystem() {
 
 
 function openEventModal(year, month, day, localVal, googleVal) {
-  const modal = document.getElementById('event-modal'); 
-  const input = document.getElementById('ev-input'); 
+  const modal = document.getElementById('event-modal');
+  const input = document.getElementById('ev-input');
   const dateLabel = document.getElementById('ev-modal-date');
-  const closeBtn = document.getElementById('close-event'); 
-  const saveBtn = document.getElementById('ev-save'); 
+  const closeBtn = document.getElementById('close-event');
+  const saveBtn = document.getElementById('ev-save');
   const delBtn = document.getElementById('ev-delete');
-  
 
-  const currentEventKey = `event_${year}_${month}_${day}`; 
-  
-  dateLabel.innerText = t('date_modal_title', { month: month + 1, day: day }); 
-  
-  
+
+  const currentEventKey = `event_${year}_${month}_${day}`;
+
+  dateLabel.innerText = t('date_modal_title', { month: month + 1, day: day });
+
+
   if (localVal) {
       input.value = localVal;
   } else if (googleVal) {
 
-      input.value = googleVal.replace(/^\d{2}:\d{2}\s/, ''); 
+      input.value = googleVal.replace(/^\d{2}:\d{2}\s/, '');
   } else {
       input.value = "";
   }
   input.placeholder = t('event_name_placeholder');
 
-  
+
   const oldGoBtn = document.getElementById('ev-google-jump');
   if(oldGoBtn) oldGoBtn.remove();
 
@@ -1464,52 +1465,52 @@ function openEventModal(year, month, day, localVal, googleVal) {
       actionsDiv.insertBefore(goBtn, actionsDiv.firstChild);
   }
 
-  modal.classList.add('show'); 
+  modal.classList.add('show');
   input.focus();
-  
-  const close = () => modal.classList.remove('show'); 
-  closeBtn.onclick = close; 
-  modal.onclick = (e) => { if(e.target === modal) close(); };
-  
 
-  saveBtn.onclick = () => { 
+  const close = () => modal.classList.remove('show');
+  closeBtn.onclick = close;
+  modal.onclick = (e) => { if(e.target === modal) close(); };
+
+
+  saveBtn.onclick = () => {
       const text = input.value;
       if(text) {
-          
+
           localStorage.setItem(currentEventKey, text);
 
-          
+
           const pad = (n) => String(n).padStart(2, '0');
           const sDate = `${year}${pad(month+1)}${pad(day)}`;
           const eDate = `${year}${pad(month+1)}${pad(day+1)}`;
           const gUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(text)}&dates=${sDate}/${eDate}`;
           window.open(gUrl, '_blank', 'width=700,height=600');
       } else {
-          
+
           localStorage.removeItem(currentEventKey);
       }
-      
-      renderCalendarSystem(); 
-      close(); 
+
+      renderCalendarSystem();
+      close();
   };
-  
-  
-  delBtn.onclick = () => { 
-  
-      localStorage.removeItem(currentEventKey); 
-      
-     
+
+
+  delBtn.onclick = () => {
+
+      localStorage.removeItem(currentEventKey);
+
+
       if(googleVal) {
           alert("Googleカレンダーの予定は、Googleの画面から削除してください。");
           const pad = (n) => String(n).padStart(2, '0');
           const url = `https://calendar.google.com/calendar/r/day/${year}/${pad(month+1)}/${pad(day)}`;
           window.open(url, '_blank');
       }
-      
-      renderCalendarSystem(); 
-      close(); 
-  }; 
-  
+
+      renderCalendarSystem();
+      close();
+  };
+
   input.onkeydown = (e) => { if(e.key === 'Enter') saveBtn.click(); };
 }
 setTimeout(syncGoogleCalendar, 2000);
